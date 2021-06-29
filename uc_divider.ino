@@ -1,12 +1,33 @@
+/*
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+// Revision 20210628
+
+
+#define DEBUG
+
+
 // pin definitions
 #define CLOCK_PIN     2
 #define RESET_PIN     3
 
 // number of outputs
-#define NUMBER_OUTS   7
+#define NUMBER_OUTS   8
 
 const uint8_t out_pins[NUMBER_OUTS] = {
-  4, 5, 6, 7, 8, 9, 10
+  4, 5, 6, 7, 8, 9, 10, 11
 };    // array of output pin numbers
 
 // each output uses a counter, incremented at each clock event
@@ -14,14 +35,21 @@ uint8_t counters[NUMBER_OUTS];
 
 // Set here the resolution of each output (the output is activated when the max value is reached)
 const uint8_t max_counts[NUMBER_OUTS] = {
-  2, 4, 8, 16, 3, 6, 12
+  2, 4, 8, 16, 3, 6, 12, 5
 };
 
 uint8_t clock_state = LOW;
 uint8_t reset_state = LOW;
 
-int reset_outputs(void);
-int manage_clock();
+// deboucing
+uint8_t last_clock_pin_state = HIGH;
+
+#ifdef DEBUG
+uint8_t debug_counter = 0;
+#endif
+
+void reset_outputs(void);
+void manage_clock();
 
 
 void setup() {
@@ -41,8 +69,10 @@ void setup() {
 
   interrupts();
 
-  Serial.begin(57600);
-  Serial.println("coucou"); 
+#ifdef DEBUG
+  Serial.begin(115200);
+  Serial.println("hello"); 
+#endif
 
   reset_outputs();
 }
@@ -50,8 +80,7 @@ void setup() {
 void loop() {
   for (uint8_t i = 0; i < NUMBER_OUTS; i++)
   {
-    // if the counter is at max, it's the beat!
-    //if (counters[i] == max_counts[i])
+    // if the counter is at 0, it's the beat!
     if (counters[i] == 0)
     {
       // but only output a beat when the clock is HIGH (reflect the Clock state)
@@ -65,59 +94,82 @@ void loop() {
   }
 }
 
-int reset_outputs(void)
+void reset_outputs(void)
 {
   // load each counter with its MAX value -> Ready for the beat!
-  //for (uint8_t i = 0; i < NUMBER_OUTS; i++) counters[i] = max_counts[i];
   for (uint8_t i = 0; i < NUMBER_OUTS; i++) counters[i] = 0;
 
-    for (uint8_t i = 0; i < NUMBER_OUTS; i++)
-    {
-      Serial.print("\t");
-      Serial.print(counters[i]);
-    }
-    Serial.println("\n\t----------------------------------------------------------------------");
-
-  return 0;
+#ifdef DEBUG
+  for (uint8_t i = 0; i < NUMBER_OUTS; i++)
+  {
+    Serial.print("\t");
+    Serial.print(counters[i]);
+  }
+  Serial.println("\n\t----------------------------------------------------------------------");
+#endif
 }
 
-int manage_clock()
-{
-  if (digitalRead(CLOCK_PIN) == LOW)
-  {
-    // Rising Edge -> start the beat!
-    clock_state = HIGH;
 
-    for (uint8_t i = 0; i < NUMBER_OUTS; i++)
+void manage_clock()
+{
+  uint8_t current_clock_pin_state = digitalRead(CLOCK_PIN);
+
+  // check for effective change (removes some bouncy effect)
+  if (current_clock_pin_state != last_clock_pin_state)
+  {
+    last_clock_pin_state = current_clock_pin_state;
+
+    // manage either start or end of pulse (the logic is negative: LOW means voltage is present)
+    if (current_clock_pin_state == LOW)
     {
+      // Rising Edge -> start the beat!
+
+      // the clock state is useful for activating the outputs only while the clock is high
+      clock_state = HIGH;
+      // -> the outputs are allowed to turn ON
+
+
+#ifdef DEBUG
       Serial.print("\t");
-      Serial.print(counters[i]);
+      Serial.print(debug_counter);
+      debug_counter++;
+      
+      for (uint8_t i = 0; i < NUMBER_OUTS; i++)
+      {
+        Serial.print("\t");
+        Serial.print(counters[i]);
+      }
+      Serial.println("");
+#endif
     }
-    Serial.println("");
-    delay(100);
+    else
+    {
+      // Falling Edge -> be ready for next step
+      clock_state = LOW;
+  
+      // increment each counter
+      for (uint8_t i = 0; i < NUMBER_OUTS; i++)
+      {
+        counters[i]++;
+  
+        // reset counters that have overflowed
+        if (counters[i] >= max_counts[i])
+        {
+          counters[i] = 0;
+        }
+      }
+#ifdef DEBUG
+      Serial.println(".");
+#endif
+    }
   }
   else
   {
-    // Falling Edge -> be ready for next step
-    clock_state = LOW;
-
-    // increment each counter
-    for (uint8_t i = 0; i < NUMBER_OUTS; i++)
-    {
-      counters[i]++;
-    }
-
-    // reset counters that are overflowed
-    for (uint8_t i = 0; i < NUMBER_OUTS; i++)
-    {
-      if (counters[i] >= max_counts[i])
-      {
-        counters[i] = 0;
-      }
-    }
-    delay(100);
+    // we are in the same state as previous call... this shouldn't happen (bounces?)
+    // do nothing
+#ifdef DEBUG
+      Serial.println("B");
+#endif
   }
 
-
-  return 0;
 }
