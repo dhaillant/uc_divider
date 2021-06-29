@@ -1,3 +1,18 @@
+/* 
+ * UC Divider is a configurable step/beat divider for musical application
+ * It features: 
+ * 8 gated/trigged outputs (5V)
+ * 1 clock input (positive voltage detection, max +5V)
+ * 1 reset input (positive voltage detection, max +5V)
+ * 
+ * 2021 David Haillant
+ * 
+ * See hardware and additional information:
+ * www.davidhaillant.com
+ * 
+ */
+
+
 /*
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -13,30 +28,44 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Revision 20210628
+// Revision 20210629
 
 
-#define DEBUG
+// Uncomment the following line to allow serial debugging (115200 bauds)
+//#define DEBUG
 
 
-// pin definitions
+// pin definitions (see Arduino pin mapping)
 #define CLOCK_PIN     2
 #define RESET_PIN     3
 
 // number of outputs
 #define NUMBER_OUTS   8
 
+// array of output pin numbers
 const uint8_t out_pins[NUMBER_OUTS] = {
   4, 5, 6, 7, 8, 9, 10, 11
-};    // array of output pin numbers
+};
+
+
+/*
+ * Set here the resolution of each output (the output is activated when the max value is reached)
+ * 
+ * example: an output set with the resolution "2" will be active every 2 steps (1/2)
+ * with a resolution "5", the output will be active every 5 steps (1/5)
+ * 
+ * The output order is from left to right: output 1 to output(NUMBER_OUTS)
+ */
+const uint8_t max_counts[NUMBER_OUTS] = {
+  2, 4, 8, 16, 3, 6, 12, 5
+};
+
+
+
 
 // each output uses a counter, incremented at each clock event
 uint8_t counters[NUMBER_OUTS];
 
-// Set here the resolution of each output (the output is activated when the max value is reached)
-const uint8_t max_counts[NUMBER_OUTS] = {
-  2, 4, 8, 16, 3, 6, 12, 5
-};
 
 uint8_t clock_state = LOW;
 uint8_t reset_state = LOW;
