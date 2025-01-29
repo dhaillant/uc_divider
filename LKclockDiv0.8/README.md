@@ -1,0 +1,12 @@
+FEATURES
+-clock fallback when no clock is input for 5 sec 
+-clock fallback list of 16 BPM , increment with the reset button 30, 40, 60, 80, 90, 100, 110, 120, 125, 130, 140, 160, 180, 200, 220, 240
+-5ms trigs 
+-Output 1: Copy of the input clock (unmodified).
+-Output 2: Same speed as the input clock but 180° phase-shifted.
+-Output 3: Clock at double the input speed.
+-Output 4: Clock at four times the input speed.
+-Output 5: Clock at half the input speed.
+-Output 6: Clock at quarter the input speed. 
+-Output 7: Coin toss with output 8 
+-Output 8: Coin toss with output 7
